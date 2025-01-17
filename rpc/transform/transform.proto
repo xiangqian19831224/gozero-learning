@@ -1,0 +1,81 @@
+//对该文件执行指令 ：
+// $ goctl rpc protoc transform.proto --go_out=. --go-grpc_out=. --zrpc_out=.
+//
+//1. 解析 .proto 文件：goctl 首先会解析 transform.proto 文件，读取其中定义的服务接口、消息类型等信息。
+//2. 生成 Go 语言代码：根据 --go_out=. 参数，goctl 会在当前目录下生成与 transform.proto 文件中定义的消息类型对应的 Go 语言结构体代码。
+//   这些结构体用于在 Go 程序中表示和操作消息数据。
+//3. 生成 gRPC 代码：依据 --go-grpc_out=. 参数，goctl 会在当前目录生成 gRPC 服务端和客户端的 Go 语言代码。
+//   这些代码包括服务端的接口定义、客户端的桩代码等，使得开发者可以基于这些代码实现具体的 RPC 服务逻辑和进行 RPC 调用。
+//4. 生成 zrpc 代码：根据 --zrpc_out=. 参数，goctl 会在当前目录生成 zrpc 相关的代码。
+//   这些代码在 gRPC 代码的基础上，增加了 zrpc 框架的一些特性，如服务注册、发现、配置管理等的集成代码，
+//   让开发者能够更便捷地使用 zrpc 框架搭建高可用的 RPC 服务。
+//5. 生成的代码结构如下：
+//    rpc/transform
+//    ├── etc
+//    │   └── transform.yaml              // 配置文件
+//    ├── internal
+//    │   ├── config
+//    │   │   └── config.go               // 配置定义
+//    │   ├── logic
+//    │   │   ├── expandlogic.go          // expand 业务逻辑在这里实现
+//    │   │   └── shortenlogic.go         // shorten 业务逻辑在这里实现
+//    │   ├── server
+//    │   │   └── transformerserver.go    // 调用入口, 不需要修改
+//    │   └── svc
+//    │       └── servicecontext.go       // 定义 ServiceContext，传递依赖
+//    ├── transform
+//    │     ├── transform.pb.go
+//    │     └── transform_grpc.pb.go
+//    ├── transform.go                    // rpc 服务 main 函数
+//    ├── transform.proto
+//    └── transformer
+//        └── transformer.go              // 提供了外部调用方法，无需修改
+//6. 生成代码结构说明
+//6.1 zrpc:   --zrpc_out=.
+//    ├── etc
+//    │   └── transform.yaml              // 配置文件
+//    ├── internal
+//    │   ├── config
+//    │   │   └── config.go               // 配置定义
+//    │   ├── logic
+//    │   │   ├── expandlogic.go          // expand 业务逻辑在这里实现
+//    │   │   └── shortenlogic.go         // shorten 业务逻辑在这里实现
+//    │   ├── server
+//    │   │   └── transformerserver.go    // 调用入口, 不需要修改
+//    │   └── svc
+//    │       └── servicecontext.go       // 定义 ServiceContext，传递依赖
+//    ├── transform.go                    // rpc 服务 main 函数
+//    └── transformer
+//        └── transformer.go              // 提供了外部调用方法，无需修改
+//6.2 grpc and go:
+//    ├── transform
+//    │     ├── transform.pb.go           // go     --go_out=.        option go_package = "./transform"
+//    │     └── transform_grpc.pb.go      // grpc   --go-grpc_out=.   option go_package = "./transform"
+//7. 整理依赖  $ go mod tidy
+//8. 启动服务  $ go run transform.go -f etc/transform.yaml
+//9. 查看注册  $ ETCDCTL_API=3 etcdctl get transform.rpc --prefix
+syntax = "proto3";
+
+package transform;
+option go_package = "./transform";
+
+message expandReq{
+  string shorten = 1;
+}
+
+message expandResp{
+  string url = 1;
+}
+
+message shortenReq{
+  string url = 1;
+}
+
+message shortenResp{
+  string shorten = 1;
+}
+
+service transformer{
+  rpc expand(expandReq) returns(expandResp);
+  rpc shorten(shortenReq) returns(shortenResp);
+}
